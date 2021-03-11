@@ -5,10 +5,12 @@ from src import data_handlers, pivots_generators
 from src.explainers import TabularExplainer
 
 import sklearn as sklearn
+from sklearn import svm, neural_network
 import sklearn.ensemble
 import scipy
 import numpy as np
 import json
+import xgboost as xgb
 
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
@@ -28,7 +30,10 @@ data_handlers = {
 }
 
 models = {
-    'random_forest': sklearn.ensemble.RandomForestClassifier(n_estimators=100, max_depth=4, random_state=0)
+    'random_forest': sklearn.ensemble.RandomForestClassifier(n_estimators=100, max_depth=4, random_state=0),
+    'svm': svm.SVC(probability=True),
+    'mlp': neural_network.MLPClassifier(),
+    'xgboost': xgb.XGBClassifier(objective="binary:logistic", random_state=0)
 }
 
 proximity_fns = {
