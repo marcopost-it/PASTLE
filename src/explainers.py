@@ -422,6 +422,23 @@ class TabularExplainer(object):
         values = self.convert_and_round(data_row)
         feature_indexes = None
 
+        if self.mode == 'regression':
+            try:
+                if len(yss.shape) != 1 and len(yss[0].shape) == 1:
+                    yss = np.array([v[0] for v in yss])
+                assert isinstance(yss, np.ndarray) and len(yss.shape) == 1
+            except AssertionError:
+                raise ValueError("Your model needs to output single-dimensional \
+                    numpyarrays, not arrays of {} dimensions".format(yss.shape))
+
+            predicted_value = yss[0]
+            min_y = min(yss)
+            max_y = max(yss)
+
+            # add a dimension to be compatible with downstream machinery
+            yss = yss[:, np.newaxis]               
+            
+
         domain_mapper = TableDomainMapper(cluster_names,
                                           centroid_distances[0],
                                           centroid_distances[0],  # N E W
@@ -448,15 +465,18 @@ class TabularExplainer(object):
                                            class_names=self.class_names)
         lime_exp.scaled_data = scaled_data
 
-        castle_exp.predict_proba = yss[0]
-        lime_exp.predict_proba = yss[0]
-        if top_labels:
-            labels = np.argsort(yss[0])[-top_labels:]
-            castle_exp.top_labels = list(labels)
-            castle_exp.top_labels.reverse()
-            lime_exp.top_labels = list(labels)
-            lime_exp.top_labels.reverse()
-            labels = castle_exp.top_labels
+
+
+        if self.mode == 'classification':
+            castle_exp.predict_proba = yss[0]
+            lime_exp.predict_proba = yss[0]
+            if top_labels:
+                labels = np.argsort(yss[0])[-top_labels:]
+                castle_exp.top_labels = list(labels)
+                castle_exp.top_labels.reverse()
+                lime_exp.top_labels = list(labels)
+                lime_exp.top_labels.reverse()
+                labels = castle_exp.top_labels
         else:
             castle_exp.predicted_value = predicted_value
             castle_exp.min_value = min_y
@@ -488,6 +508,15 @@ class TabularExplainer(object):
                 num_features,
                 feature_selection=self.feature_selection,
                 model_regressor=model_regressor)
+        
+        if self.mode == "regression":
+            lime_exp.intercept[1] = lime_exp.intercept[0]
+            lime_exp.local_exp[1] = [x for x in lime_exp.local_exp[0]]
+            lime_exp.local_exp[0] = [(i, -1 * j) for i, j in lime_exp.local_exp[1]]
+
+            castle_exp.intercept[1] = castle_exp.intercept[0]
+            castle_exp.local_exp[1] = [x for x in castle_exp.local_exp[0]]
+            castle_exp.local_exp[0] = [(i, -1 * j) for i, j in castle_exp.local_exp[1]]           
 
         return castle_exp, lime_exp
 

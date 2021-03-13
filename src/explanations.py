@@ -35,6 +35,7 @@ class PASTLE_Explanation():
                  test_instance,
                  true_pred,  # black-box prediction
                  feature_names,
+                 mode = 'classification',
                  verbose=False):
 
         self.base_exp = base_explanation
@@ -46,8 +47,9 @@ class PASTLE_Explanation():
         self.colors = cm.hsv(np.linspace(0, 1, len(self.feature_names)))
         self.pivots = pivots
         self.true_pred = true_pred
-        self.exp_vector, _, _, _ = self.get_exp_vector(test_instance, base_explanation, pivots, verbose)
+        self.mode = mode
 
+        self.exp_vector, _, _, _ = self.get_exp_vector(test_instance, base_explanation, pivots, verbose)
         self.features_order = np.array([c[0] for c in feature_importances])
         self.features_importance = np.array([c[1] for c in feature_importances])
 
@@ -55,7 +57,13 @@ class PASTLE_Explanation():
         num_pivots = int(len(pivots))
         exp_pivots = []
         weights_array = np.zeros(num_pivots)
-        for pair in base_exp.local_exp[base_exp.available_labels()[0]]:
+
+        if self.mode=='regression':
+            x = 0
+        else:
+            x = base_exp.available_labels()[0]
+
+        for pair in base_exp.local_exp[x]:
             pivot_idx = pair[0]
             exp_pivots.append(pivot_idx)
             weights_array[pivot_idx] = pair[1]
@@ -100,8 +108,9 @@ class PASTLE_Explanation():
 
         print("Index & Importance: ", idx, " - ", fi)
         x_coord = fi.reshape((len(self.feature_names[idx]), 1))
-        if self.base_exp.available_labels()[0] == 0:
-            x_coord *= -1
+        if self.mode == 'classification':
+            if self.base_exp.available_labels()[0] == 0:
+                x_coord *= -1
 
         fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 
@@ -130,14 +139,17 @@ class PASTLE_Explanation():
             drawArrow([x_coord[i], 0], [x_coord[i], np.sign(self.exp_vector[idx[i]])], color=self.colors[idx[i]])
             plt.scatter(x_coord[i], 0, color=self.colors[idx[i]], s=50)
 
-        ax.axvspan(0, np.max(x_coord) + 0.1 * np.max(np.abs(x_coord)), facecolor='green', alpha=0.2, label='_nolegend_')
+        if self.mode == 'classification':       
+            ax.axvspan(0, np.max(x_coord) + 0.1 * np.max(np.abs(x_coord)), facecolor='green', alpha=0.2, label='_nolegend_')
 
-        if np.min(x_coord) < 0:
-            ax.axvspan(np.min(x_coord) - 0.1 * np.max(np.abs(x_coord)), 0, facecolor='red', alpha=0.2,
-                       label='_nolegend_')
+            if np.min(x_coord) < 0:
+                ax.axvspan(np.min(x_coord) - 0.1 * np.max(np.abs(x_coord)), 0, facecolor='red', alpha=0.2,
+                        label='_nolegend_')
 
-        ax.text(0.5 * rightlim, 2.8, self.base_exp.class_names[self.base_exp.available_labels()[0]],
-                horizontalalignment='center', verticalalignment='top', fontsize=14, alpha=0.7)
+            x = 0 if self.mode=='regression' else self.base_exp.class_names[self.base_exp.available_labels()[0]]
+                                                                            
+            ax.text(0.5 * rightlim, 2.8, x,
+                    horizontalalignment='center', verticalalignment='top', fontsize=14, alpha=0.7)
 
         leg = ax.legend([self.feature_names[c] + " = " + "{:.2f}".format(self.test_instance[c]) \
                          for c in idx], prop={'size': 12}, bbox_to_anchor=(1.6, 0.5), loc='center right', ncol=1)
@@ -213,13 +225,22 @@ class PASTLE_Explanation():
         pts_supporting = test_instance + x * exp_vector * np.std(dataset, axis=0)
         pts_supporting = np.where(pts_supporting >= datasetMin, pts_supporting, datasetMin)
         pts_supporting = np.where(pts_supporting <= datasetMax, pts_supporting, datasetMax)
-        preds_supporting = model.predict_proba(pts_supporting)[:, self.base_exp.available_labels()[0]]
+        if self.mode == 'classification':
+            preds_supporting = model.predict_proba(pts_supporting)[:, self.base_exp.available_labels()[0]]
+        else:
+            preds_supporting = model.predict(pts_supporting)
+
         stop_point = len(pts_supporting)
 
         pts_opposing = test_instance - x * exp_vector * np.std(dataset, axis=0)
         pts_opposing = np.where(pts_opposing >= datasetMin, pts_opposing, datasetMin)
         pts_opposing = np.where(pts_opposing <= datasetMax, pts_opposing, datasetMax)
-        preds_opposing = model.predict_proba(pts_opposing)[:, self.base_exp.available_labels()[0]]
+
+        if self.mode == 'classification':
+            preds_opposing = model.predict_proba(pts_opposing)[:, self.base_exp.available_labels()[0]]
+        else:
+            preds_opposing = model.predict(pts_opposing)
+
         most_opposing = pts_opposing[np.argmin(preds_opposing)]
         stop_point = len(pts_opposing)
 
@@ -227,7 +248,8 @@ class PASTLE_Explanation():
             fig, ax = plt.subplots(1, 1, figsize=(8, 6))
 
             ax.tick_params(bottom=False, labelsize=12)
-            ax.set_ylim(0, 1)
+            if self.mode == 'classification':
+                ax.set_ylim(0, 1)
             ax.set_xticks([])
             ax.set_xlabel('Points along directions')
             ax.set_ylabel('Model prediction')

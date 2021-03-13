@@ -6,11 +6,13 @@ import numpy as np
 
 class DataHandler():
 
-    def split(self, test_size, seed):
+    def split(self, test_size, seed,stratify = True):
+
+        stratify = self.labels if stratify==True else None
         self.X_train, self.X_test, self.y_train, self.y_test = \
-            sklearn.model_selection.train_test_split(self.dataset, self.labels, test_size=test_size, stratify=self.labels, random_state = seed)
+            sklearn.model_selection.train_test_split(self.dataset, self.labels, test_size=test_size, stratify=stratify, random_state = seed)
 
-
+		
 class AdultDataHandler(DataHandler):
 
     def __init__(self, path):
@@ -124,3 +126,15 @@ class TitanicDataHandler(DataHandler):
         dataset[:, -1] = le.fit_transform(dataset[:, -1])
         self.dataset = dataset
         self.class_names = ['not survived', 'survived']
+        
+
+class EnergyEfficiencyDataHandler(DataHandler):
+    def __init__(self,path=None):
+
+        columns = ['Relative Compactness','Surface Area','Wall Area','Roof Area','Overall Height','Orientation','Glazing Area','Glazing Area Distribution','Heating Load','Cooling Load']
+
+        df = pd.read_excel('https://archive.ics.uci.edu/ml/machine-learning-databases/00242/ENB2012_data.xlsx')
+        df.columns = columns
+        self.feature_names = df.columns[:-2].tolist()
+        self.dataset = df.iloc[:,:-2].to_numpy()
+        self.labels = df.iloc[:,-2].to_numpy()
