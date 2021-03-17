@@ -59,7 +59,7 @@ class PASTLE_Explanation():
         weights_array = np.zeros(num_pivots)
 
         if self.mode=='regression':
-            x = 0
+            x = 1
         else:
             x = base_exp.available_labels()[0]
 
@@ -112,7 +112,7 @@ class PASTLE_Explanation():
             if self.base_exp.available_labels()[0] == 0:
                 x_coord *= -1
 
-        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+        fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
         # ax.scatter(x_coord, y_coord, s=100, c='b', alpha=0.5)
         ax.grid(False, which='both')
@@ -139,6 +139,7 @@ class PASTLE_Explanation():
             drawArrow([x_coord[i], 0], [x_coord[i], np.sign(self.exp_vector[idx[i]])], color=self.colors[idx[i]])
             plt.scatter(x_coord[i], 0, color=self.colors[idx[i]], s=50)
 
+        
         if self.mode == 'classification':       
             ax.axvspan(0, np.max(x_coord) + 0.1 * np.max(np.abs(x_coord)), facecolor='green', alpha=0.2, label='_nolegend_')
 
@@ -149,10 +150,13 @@ class PASTLE_Explanation():
             x = 0 if self.mode=='regression' else self.base_exp.class_names[self.base_exp.available_labels()[0]]
                                                                             
             ax.text(0.5 * rightlim, 2.8, x,
-                    horizontalalignment='center', verticalalignment='top', fontsize=14, alpha=0.7)
-
+                    horizontalalignment='center', verticalalignment='top', fontsize=24, alpha=0.7)
+        else:
+            x = 'Predicted value = ' + str(self.true_pred)
+            ax.text(0.5 * rightlim, 2.8, x,
+                    horizontalalignment='center', verticalalignment='top', fontsize=24, alpha=0.7)
         leg = ax.legend([self.feature_names[c] + " = " + "{:.2f}".format(self.test_instance[c]) \
-                         for c in idx], prop={'size': 12}, bbox_to_anchor=(1.6, 0.5), loc='center right', ncol=1)
+                         for c in idx], prop={'size': 20}, bbox_to_anchor=(1.95, 0.5), loc='center right', ncol=1)
         leg.get_frame().set_linewidth(0.0)
 
         if save:
@@ -210,7 +214,7 @@ class PASTLE_Explanation():
         ax.legend([self.feature_names[c] + ' = ' + str(self.test_instance[c]) for c in range(len(self.feature_names))],
                   prop={'size': 14}, bbox_to_anchor=(1.4, 1), loc='upper right', ncol=1)
 
-    def move_along_directions(self, model, n_points=2000, direction='both', verbose=True):
+    def move_along_directions(self, model, n_points=2000, direction='both', verbose=True,save=False,name=None):
         dataset = self.dataset
         test_instance = self.test_instance
         exp_vector = self.exp_vector
@@ -251,8 +255,8 @@ class PASTLE_Explanation():
             if self.mode == 'classification':
                 ax.set_ylim(0, 1)
             ax.set_xticks([])
-            ax.set_xlabel('Points along directions')
-            ax.set_ylabel('Model prediction')
+            ax.set_xlabel('Points along directions',size=24)
+            ax.set_ylabel('Model prediction',size=24)
 
             if direction == 'both' or direction == 'supporting':
                 xx = range(stop_point)
@@ -263,7 +267,14 @@ class PASTLE_Explanation():
                 yy = preds_opposing[:stop_point]
                 ax.plot(xx, yy, color='#E42531')
             plt.grid(True)
-            plt.legend(['Supporting direction', 'Opposing direction'])
+            if self.mode == 'classification':
+                plt.legend(['Supporting direction', 'Opposing direction'],prop={'size': 24})
+            else:
+                plt.legend(['Positive direction', 'Negative direction'],prop={'size': 24})
+
+
+            if save:
+                plt.savefig(name, bbox_inches='tight')
 
         return pts_supporting, preds_supporting, pts_opposing, preds_opposing
 
